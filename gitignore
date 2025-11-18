@@ -1,0 +1,28 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Logs and captures
+*.pcap
+*.pcapng
+capture-*.txt
+
+# Output files from scripts
+latency-*.txt
+*.tmp

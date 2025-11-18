@@ -1,0 +1,25 @@
+# OpenWRT firewall-config.txt (Template)
+
+config zone
+    option name 'lan'
+    option network 'lan lab_test'
+    option input 'ACCEPT'
+    option output 'ACCEPT'
+    option forward 'ACCEPT'
+
+config zone
+    option name 'wan'
+    option network 'wan'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+    option masq '1'
+    option mtu_fix '1'
+
+config forwarding
+    option src 'lan'
+    option dest 'wan'
+
+# Notes:
+# - Masquerading (NAT) may be turned off/on for routing/double NAT scenarios.
+# - Additional rules will be added for specific tests.

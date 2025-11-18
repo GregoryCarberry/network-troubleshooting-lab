@@ -1,0 +1,25 @@
+# OpenWRT network-config.txt (Template)
+# This is a documentation template, not a live config file.
+
+# LAN interface (lab)
+config interface 'lan'
+    option ifname 'eth0.10'
+    option proto 'static'
+    option ipaddr '192.168.50.1'
+    option netmask '255.255.255.0'
+
+# Optional test VLAN
+config interface 'lab_test'
+    option ifname 'eth0.20'
+    option proto 'static'
+    option ipaddr '192.168.60.1'
+    option netmask '255.255.255.0'
+
+# WAN interface (upstream to Virgin Hub)
+config interface 'wan'
+    option ifname 'eth1'
+    option proto 'dhcp'
+
+# Notes:
+# - VLAN IDs and interfaces will be adjusted to match actual hardware.
+# - Real configs should not be committed with live public IP information.

@@ -1,0 +1,9 @@
+# AT-8326GB Lab Configuration (Placeholder)
+# This file will hold the final lab configuration used for scenarios.
+
+# Planned content:
+# - VLAN definitions (e.g. 10, 20, 30)
+# - Access/trunk port assignments
+# - STP settings (edge ports, trunk ports)
+# - Port mirroring for captures
+# - Management interface configuration

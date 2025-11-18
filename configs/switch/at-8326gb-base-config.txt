@@ -1,0 +1,9 @@
+# AT-8326GB Base Configuration (Placeholder)
+# This file will be populated once console access is available.
+# It is intended to hold a clean, baseline configuration for the switch.
+
+# Expected elements:
+# - Management VLAN and IP
+# - Default gateway
+# - Basic STP configuration
+# - Console / login parameters

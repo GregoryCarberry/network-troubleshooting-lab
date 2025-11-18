@@ -1,0 +1,20 @@
+# OpenWRT dhcp-config.txt (Template)
+
+config dhcp 'lan'
+    option interface 'lan'
+    option start '100'
+    option limit '100'
+    option leasetime '12h'
+    option dhcpv6 'server'
+    option ra 'server'
+    list dhcp_option '6,192.168.50.1'  # DNS server
+
+config dhcp 'lab_test'
+    option interface 'lab_test'
+    option start '100'
+    option limit '100'
+    option leasetime '12h'
+
+# Notes:
+# - Adjust pools to match lab subnets.
+# - Additional options (DNS, NTP, WINS) can be added for specific scenarios.
