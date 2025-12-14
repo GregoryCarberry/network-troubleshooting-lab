@@ -1,7 +1,7 @@
 !
 ! Cisco SG300-28
 ! Baseline running configuration
-! Captured: 2025-12-xx
+! Captured: 2025-12-13
 ! Lab: Network Troubleshooting Lab
 !
 
