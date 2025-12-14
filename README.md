@@ -1,80 +1,138 @@
 # Network Troubleshooting Lab
 
-A hands-on lab environment designed to practise real-world network diagnostics, configuration, and fault resolution.  
-Built using a mix of enterprise hardware, consumer routers, Linux servers, and a Raspberry Pi used as a “fault injector”.
+A hands-on network troubleshooting lab focused on diagnosing and resolving Layer 2–Layer 4 issues using realistic hardware and configurations.
 
-This environment simulates the types of network problems commonly encountered in service desk, NOC, and junior network engineer roles.
+The lab uses a mix of consumer, SMB, and enterprise-style equipment to reflect environments commonly encountered in operational IT and networking roles.
 
-## Goals
-- Strengthen troubleshooting skills across Layers 1–7  
-- Learn VLANs, routing, DHCP, DNS, switching, NAT  
-- Reproduce real network faults and document root cause analysis  
-- Build confidence with enterprise switch configuration  
-- Prepare for technical interviews (Service Desk, IT Support, Cloud Support)
+---
 
-## Hardware Used
-- Allied Telesyn AT-8326GB (managed switch)  
-- BT Hub (OpenWRT) – router-on-a-stick  
-- Virgin Hub – upstream network  
-- Linux workstation – services + diagnostics  
-- Raspberry Pi Model B – fault injection device  
-- Technicolor TG582n units – NAT/DHCP test devices  
-- Cisco Access Points – wireless testing
+## Scope
 
-## Lab Capabilities
-- Multi-VLAN segmentation  
-- Router-on-a-stick inter-VLAN routing  
-- DHCP, DNS, NGINX, SSH, ICMP services  
-- STP loop simulations  
-- Broadcast/multicast traffic analysis  
-- NAT behaviour testing (single and double NAT)  
-- Switchport mirroring for Wireshark captures  
-- Intentional misconfigurations for training scenarios
+This repository documents a modular troubleshooting lab used to examine:
 
-## Scenarios (Work In Progress)
-Each scenario includes symptoms, diagnostic steps, root cause, and resolution.
+- Switching vs routing boundaries
+- VLAN behaviour and management
+- DHCP, DNS, NAT, and firewall interactions
+- Fault isolation across multi-device network paths
 
-- DHCP scope exhaustion  
-- DNS failure  
-- Wrong subnet mask  
-- Incorrect gateway  
-- VLAN mismatch  
-- Wi-Fi vs Ethernet inconsistencies  
-- Routing loops  
-- Firewall blocking outbound traffic  
-- Double-NAT issues  
-- ARP conflicts
+The emphasis is on reproducibility, clear evidence, and documented outcomes.
 
-## Configurations
-All configs stored in the `/configs` folder.
+---
 
-### Switch
-- AT-8326GB base config  
-- Lab configuration (VLANs, trunks, management IP)
+## Current Active Topology (Authoritative)
 
-### Router (OpenWRT)
-- Network interface config  
-- DHCP  
-- Firewall / NAT rules
+```
+Internet
+  ↓
+Virgin Media Hub (modem mode)
+  ↓
+BT Home Hub 5A (OpenWrt)
+  - Edge router (NAT, firewall, DHCP)
+  - VLAN-aware access point
+  ↓
+Cisco SG300-28
+  - Managed switch (Layer 2)
+  - VLAN segmentation & management
+  ↓
+Lab clients / test devices
+```
 
-### Linux
-- Static route examples  
-- NGINX test server  
-- dnsmasq lightweight DNS
+The BT Home Hub 5A running OpenWrt is the only Layer 3 device in the lab.
+The Cisco SG300-28 operates at Layer 2 for switching and VLAN separation.
 
-## Diagnostic Tools Used
-- ping, traceroute, ss, ip, tcpdump, dig, nslookup  
-- Wireshark  
-- Python scripts for latency monitoring  
-- Bash scripts for basic checks
+---
 
-## Future Plans
-- Automate scenario setup/teardown  
-- Add Grafana dashboards  
-- Extend wireless testing using Cisco APs
+## Hardware in Use
 
-## Status
-🟦 Repo structure created  
-🟧 Waiting for RS232 console cables  
-⬜ Begin documenting scenarios after switch configuration
+### Networking
 
+- **Cisco SG300-28**
+  - Managed switch
+  - VLAN configuration (access and trunk ports)
+  - Switch management via dedicated management IP
+
+- **BT Home Hub 5A (OpenWrt)**
+  - Edge router and access point
+  - Provides:
+    - WAN DHCP client
+    - NAT (masquerading)
+    - Firewalling
+    - LAN DHCP and DNS
+  - Configuration and recovery notes are documented in `configs/openwrt/hh5a-ap1`
+
+- **Virgin Media Hub**
+  - Operating in modem mode only
+  - Management interface available at `192.168.100.1`
+  - No routing, NAT, or wireless services enabled
+
+### Secondary / Comparative Hardware
+
+- **Zyxel GS1920-24**
+  - Managed switch with GUI-focused management
+  - Limited CLI functionality
+  - Reserved for comparative labs examining:
+    - Enterprise CLI vs SMB GUI workflows
+    - Management plane limitations
+    - Mixed-vendor operational trade-offs
+
+---
+
+## Available Hardware for Future Labs
+
+The following devices are not part of the active topology but are available for future scenarios:
+
+- **3 × Cisco AIR-SAP2602I-E-K9**
+  - Wireless access point configuration
+  - SSID design and security modes
+  - Roaming and client behaviour
+
+- **1 × Alfa AWUS051NH v2**
+  - Wireless client diagnostics
+  - Packet capture and monitor-mode testing
+  - Client-side troubleshooting scenarios
+
+---
+
+## Implemented Scenarios
+
+- Verified end-to-end routing from LAN clients to WAN
+- Documented NAT and firewall forwarding behaviour
+- Validated VLAN handling through a managed switch
+- Captured and documented a routing fault scenario:
+  - LAN clients unable to reach WAN despite router connectivity
+  - Root cause traced to NAT / forwarding configuration
+
+Known-good configurations are archived for recovery and repeat testing.
+
+---
+
+## Deferred Areas
+
+The following areas are intentionally out of scope at this stage:
+
+- Inter-VLAN routing
+- Wireless roaming optimisation
+- IDS / traffic inspection
+- Advanced firewall hardening
+
+These are deferred to keep individual scenarios focused and isolated.
+
+---
+
+## Repository Structure (High Level)
+
+- `configs/`
+  - Router and switch configurations
+- `scripts/`
+  - Diagnostic and testing utilities
+- `diagrams/`
+  - Physical and logical topology notes
+- `SCENARIOS.md`
+  - Planned and completed troubleshooting scenarios
+
+---
+
+## Notes
+
+This repository is structured to support incremental expansion.
+Each component is documented locally, with higher-level narrative captured separately for portfolio use.

@@ -1,0 +1,57 @@
+!
+! Cisco SG300-28
+! Baseline running configuration
+! Captured: 2025-12-xx
+! Lab: Network Troubleshooting Lab
+!
+
+config-file-header
+switch9a3dfd
+v1.4.11.5 / R800_NIK_1_4_220_026
+CLI v1.0
+set system mode switch
+
+file SSD indicator encrypted
+@
+ssd-control-start
+ssd config
+ssd file passphrase control unrestricted
+no ssd file integrity control
+ssd-control-end cb0a3fdb1f3a1af4e4430033719968c0
+!
+vlan database
+vlan 99
+exit
+voice vlan oui-table add 0001e3 Siemens_AG_phone________
+voice vlan oui-table add 00036b Cisco_phone_____________
+voice vlan oui-table add 00096e Avaya___________________
+voice vlan oui-table add 000fe2 H3C_Aolynk______________
+voice vlan oui-table add 0060b9 Philips_and_NEC_AG_phone
+voice vlan oui-table add 00d01e Pingtel_phone___________
+voice vlan oui-table add 00e075 Polycom/Veritel_phone___
+voice vlan oui-table add 00e0bb 3Com_phone______________
+hostname switch9a3dfd
+line console
+exec-timeout 30
+exit
+line ssh
+exec-timeout 30
+exit
+username cisco password encrypted ca472eb6abe861ca2ceb9e145d0485488626f07e privilege 15
+ip ssh server
+ip http timeout-policy 1800
+!
+interface vlan 99
+ ip address 192.168.0.99 255.255.255.0
+!
+interface gigabitethernet13
+ switchport trunk allowed vlan add 99
+!
+interface gigabitethernet14
+ switchport mode access
+!
+interface gigabitethernet18
+ switchport trunk allowed vlan add 99
+!
+exit
+ip default-gateway 192.168.0.1
