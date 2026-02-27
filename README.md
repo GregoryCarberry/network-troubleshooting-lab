@@ -1,205 +1,203 @@
-# Network Segmentation & Troubleshooting Lab
+# 🏗 Network Segmentation & Enterprise Troubleshooting Lab
 
-> Updated: Feb 2026  
-> Category: Network Engineering Lab  
-> Focus: Multi-VLAN Segmentation, Policy Enforcement, Wireless Integration  
+> A policy-driven, multi-VLAN enterprise-style network built on physical
+> hardware to model real-world segmentation, trust boundaries, and
+> centralised routing authority.
 
----
+**Updated:** Feb 2026\
+**Category:** Network Engineering Lab\
+**Focus:** VLAN Segmentation • Firewall Policy Design • Wireless
+Integration • Controlled Trust Boundaries
 
-## Overview
+------------------------------------------------------------------------
 
-This repository documents a physical network engineering lab built on enterprise and SMB hardware.
+## 🎯 Design Objective
 
-Originally created as a troubleshooting environment, the lab has evolved into a segmented, policy-driven multi-VLAN architecture designed around:
+This lab is intentionally engineered to:
 
-- Controlled trust boundaries
-- Centralised Layer 3 authority
-- Explicit firewall rule directionality
-- Deliberate management-plane isolation
-- Consistent wired + wireless segmentation
+-   Centralise Layer 3 routing authority
+-   Enforce asymmetric trust boundaries
+-   Isolate the management plane by default
+-   Maintain strict Layer 2 / Layer 3 separation
+-   Mirror segmentation across wired and wireless clients
+-   Surface realistic failure modes for structured troubleshooting
 
-The objective is not just connectivity — but controlled connectivity.
+Connectivity is not the goal.
 
----
+Controlled connectivity is.
 
-## Authoritative Topology
+------------------------------------------------------------------------
+
+## 🧩 Core Components
+
+-   **OpenWrt (BT Home Hub 5A)** -- Single Layer 3 authority (Routing,
+    NAT, Firewall, DHCP, DNS)
+-   **Zyxel GS1920-24** -- Layer 2 switching (GUI-managed SMB platform)
+-   **Cisco SG300-28** -- Layer 2 switching (Enterprise-style CLI)
+-   **Cisco WLC 2504** -- Centralised wireless control (VLAN 99)
+-   **Cisco 2602i / 3802i APs** -- Trunked AP deployment
+-   **802.1Q Trunking** -- End-to-end VLAN tagging
+-   **Virgin Hub (Modem Mode)** -- WAN termination only
+
+------------------------------------------------------------------------
+
+## 🗺 Architecture Diagram
+
+![Network Lab Topology](diagrams/network-lab-topology_techdark.svg)
 
 High-Level Flow:
 
-Internet (Virgin Hub – Modem Mode)
-↓
-OpenWrt (BT Home Hub 5A)
-- NAT (masquerade)
-- Firewall enforcement
-- DHCP / DNS
-- Inter-VLAN routing
-↓ 802.1Q trunk (VLANs 10 / 20 / 30 / 99)
-Zyxel GS1920-24 (Layer 2 only)
-↓ 802.1Q trunk
-Cisco SG300-28 (Layer 2 only)
-↓
-Access ports & trunked wireless APs
+Internet (Virgin Hub -- Modem Mode)\
+↓\
+OpenWrt (NAT + Firewall + Inter-VLAN Routing)\
+↓ 802.1Q trunk (VLANs 10 / 20 / 30 / 99)\
+Zyxel GS1920-24 (Layer 2)\
+↓ 802.1Q trunk\
+Cisco SG300-28 (Layer 2)\
+↓\
+Access ports & trunked APs
 
-Routing authority is centralised on OpenWrt.
-Both switches operate strictly at Layer 2.
+Routing authority is centralised on OpenWrt.\
+Switches perform no inter-VLAN routing.
 
----
+------------------------------------------------------------------------
 
-## VLAN Architecture
+## 🔐 VLAN & Policy Model
 
-| VLAN | Name        | Purpose        | Behaviour |
-|------|------------|---------------|-----------|
-| 10   | Trusted     | Primary LAN    | Can reach VLAN 20 & 99 |
-| 20   | IoT         | Restricted LAN | Cannot initiate to VLAN 10 or 99 |
-| 30   | Guest       | Internet-only  | No internal access |
-| 99   | Management  | Infrastructure | Cannot initiate to user VLANs |
+  ------------------------------------------------------------------------
+  VLAN      Name                Purpose                  Behaviour
+  --------- ------------------- ------------------------ -----------------
+  10        Trusted             Primary LAN              Can reach VLAN 20
+                                                         & 99
 
-### Policy Model
+  20        IoT                 Restricted LAN           Cannot initiate
+                                                         to VLAN 10 or 99
 
-- VLAN 10 → VLAN 20: Allowed
-- VLAN 20 → VLAN 10: Blocked
-- VLAN 30 → Internal VLANs: Blocked
-- VLAN 99 → User VLANs: Blocked
-- All VLANs → WAN: NAT via OpenWrt
+  30        Guest               Internet-only            No internal
+                                                         access
 
-Security and routing decisions are enforced exclusively at Layer 3 on OpenWrt.
+  99        Management          Infrastructure           Cannot initiate
+                                                         to user VLANs
+  ------------------------------------------------------------------------
 
-Switches do not perform inter-VLAN routing.
+### Policy Enforcement
 
----
+-   VLAN 10 → VLAN 20: Allowed
+-   VLAN 20 → VLAN 10: Blocked
+-   VLAN 30 → Internal VLANs: Blocked
+-   VLAN 99 → User VLANs: Blocked
+-   All VLANs → WAN: NAT via OpenWrt
 
-## Layer 2 Design Principles
+All security enforcement occurs at Layer 3.
 
-Zyxel GS1920-24 and Cisco SG300-28:
+Switches remain strictly Layer 2.
 
-- 802.1Q trunking
-- Access port segmentation
-- No Layer 3 routing
-- Clear separation of switching vs routing roles
-- Comparative platform testing (SMB GUI vs enterprise-style CLI)
+------------------------------------------------------------------------
 
-Switch configuration errors (mis-tagging, trunk failures, VLAN leaks) are deliberately tested and documented.
+## 🔄 Layer 2 Architecture
 
----
+Both switches operate as pure Layer 2 devices:
 
-## Layer 3 Authority (OpenWrt)
+-   802.1Q trunking between devices
+-   Access ports assigned per VLAN
+-   No inter-VLAN routing enabled
+-   Deliberate separation of switching vs routing responsibility
+-   Comparative vendor experience (SMB GUI vs enterprise CLI)
 
-OpenWrt acts as the single Layer 3 boundary.
+------------------------------------------------------------------------
+
+## 🛡 Layer 3 Authority (OpenWrt)
+
+OpenWrt functions as the single routing boundary.
 
 Responsibilities:
 
-- Inter-VLAN routing
-- NAT (WAN masquerading)
-- Firewall policy enforcement
-- DHCP and DNS services
+-   Inter-VLAN routing
+-   Firewall rule directionality
+-   NAT (masquerading)
+-   DHCP / DNS services
 
-Key Design Rule:
+Design Principle:
 
-Switching ≠ Routing
+Switching ≠ Routing.
 
-All policy enforcement and trust boundary decisions are centralised.
+------------------------------------------------------------------------
 
----
+## 📡 Wireless Integration
 
-## Wireless Architecture
+-   WLC 2504 in VLAN 99 (Management)
+-   APs trunked from both switches
+-   SSIDs mapped directly to VLANs 10 / 20 / 30
+-   Wireless segmentation mirrors wired policy
+-   No policy exemptions for wireless clients
 
-- Cisco WLC 2504 placed in VLAN 99 (Management)
-- Cisco 2602i and 3802i APs trunked to switches
-- SSIDs mapped to VLANs 10 / 20 / 30
-- Wireless segmentation mirrors wired segmentation
-- No policy exceptions for wireless clients
+------------------------------------------------------------------------
 
-Wireless clients are subject to identical Layer 3 firewall policy as wired devices.
+## 🧪 Documented Failure Scenarios
 
----
+### LAN Has No Internet, Router Does
 
-## Documented Failure Scenarios
+Root cause: Misconfigured forwarding / masquerade rule.
 
-This lab intentionally introduces faults to validate troubleshooting methodology.
+Lesson: Validate NAT and zone forwarding, not just WAN link status.
 
-Examples:
-
-### LAN Clients Cannot Reach Internet
-Root Cause: Misconfigured forwarding or NAT rule.
-
-Validation:
-- Confirm router WAN connectivity
-- Confirm firewall zone forwarding
-- Validate masquerade rules
-
----
+------------------------------------------------------------------------
 
 ### Management Plane Isolation
-Management VLAN intentionally unreachable from user VLANs.
 
-Lesson:
-Isolation is expected behaviour.
-Access must be explicitly permitted.
+VLAN 99 intentionally unreachable from user VLANs.
 
----
+Lesson: Isolation is expected. Access must be explicitly permitted.
 
-### VLAN Misconfiguration / Trunk Errors
-Incorrect tagging or PVID assignments can produce partial connectivity or isolation leaks.
+------------------------------------------------------------------------
+
+### VLAN Tagging Errors
+
+Incorrect trunk tagging or PVID assignment can produce partial
+connectivity or segmentation leaks.
 
 Validation includes:
-- Port membership verification
-- Cross-VLAN testing
-- Real traffic (HTTP/DNS) validation
 
----
+-   Port membership inspection
+-   Cross-VLAN testing
+-   DNS / HTTP traffic validation
+-   Not ICMP alone
 
-## Troubleshooting Framework
+------------------------------------------------------------------------
 
-Structured fault isolation approach:
+## 🧠 Troubleshooting Framework
 
-1. Physical link status
-2. VLAN tagging verification
-3. IP addressing & gateway validation
-4. Firewall rule directionality
-5. NAT / masquerade behaviour
-6. Real application traffic testing
+1.  Physical link verification
+2.  VLAN tagging validation
+3.  IP / Gateway confirmation
+4.  Firewall rule directionality
+5.  NAT / masquerade behaviour
+6.  Real application traffic validation
 
-ICMP alone is not considered sufficient validation.
+This prevents chasing symptoms instead of root cause.
 
----
+------------------------------------------------------------------------
 
-## Design Tradeoffs
+## ⚖ Design Tradeoffs
 
-- Centralised routing simplifies policy control
-- Switches remain Layer 2 for clarity of responsibility
-- Management plane isolated by default
-- Dual-switch architecture retained for cross-platform familiarity
-- Wireless integrated without bypassing segmentation rules
+-   Centralised routing simplifies policy enforcement
+-   Management plane isolated by default
+-   Switches restricted to Layer 2 for clarity
+-   Dual-switch design retained for platform familiarity
+-   Wireless fully integrated without bypassing segmentation
 
----
+------------------------------------------------------------------------
 
-## Why This Lab Exists
-
-This repository documents applied network engineering practice.
-
-It demonstrates:
-
-- Multi-VLAN segmented design
-- Controlled trust boundaries
-- Centralised firewall enforcement
-- Wireless + wired policy consistency
-- NAT behaviour and forwarding logic
-- Clear Layer 2 vs Layer 3 responsibility
-- Real-world fault isolation methodology
-
-The lab evolves incrementally, with configuration snapshots preserved for reproducibility and rollback.
-
----
-
-## Status
+## 🚀 Status
 
 Active and expanding.
 
-Future areas may include:
+Future expansion may include:
 
-- Additional wireless optimisation testing
-- Comparative routing models
-- Enhanced logging and monitoring
-- Extended policy complexity
+-   Enhanced wireless optimisation testing
+-   Extended firewall complexity
+-   Monitoring and logging integration
+-   Comparative routing models
 
-Segmentation is enforced, tested, and validated using real client traffic.
+Segmentation is enforced, tested, and validated using real client
+traffic.
