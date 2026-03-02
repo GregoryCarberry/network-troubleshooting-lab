@@ -42,6 +42,7 @@ configs/**/*running-config*.txt
 configs/**/*startup-config*.txt
 configs/**/*backup*.tar.gz
 configs/**/*full-config*.tar.gz
+configs/private/
 
 # OpenWrt sensitive exports
 configs/**/wireless.conf
