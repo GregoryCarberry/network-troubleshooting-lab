@@ -1,0 +1,38 @@
+# OpenWrt /etc/config/network (Template - Redacted)
+# This is a documentation template, not a raw live export.
+
+# VLAN interfaces (example naming)
+# Adjust device names (eth0.X / br-vlanX) to match the actual OpenWrt platform.
+
+config interface 'vlan10_trusted'
+    option device 'br-vlan10'
+    option proto 'static'
+    option ipaddr '10.10.10.1'
+    option netmask '255.255.255.0'
+
+config interface 'vlan20_iot'
+    option device 'br-vlan20'
+    option proto 'static'
+    option ipaddr '10.10.20.1'
+    option netmask '255.255.255.0'
+
+config interface 'vlan30_guest'
+    option device 'br-vlan30'
+    option proto 'static'
+    option ipaddr '10.10.30.1'
+    option netmask '255.255.255.0'
+
+config interface 'vlan99_mgmt'
+    option device 'br-vlan99'
+    option proto 'static'
+    option ipaddr '10.10.99.1'
+    option netmask '255.255.255.0'
+
+# WAN interface (upstream to modem)
+config interface 'wan'
+    option device 'eth1'
+    option proto 'dhcp'
+
+# Notes:
+# - Real configs should not be committed with secrets (PPPoE creds, VPN keys, etc.)
+# - Keep this file aligned with docs/ logical-vlans.md

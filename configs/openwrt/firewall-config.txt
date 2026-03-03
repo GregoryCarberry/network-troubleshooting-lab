@@ -1,0 +1,67 @@
+# OpenWrt /etc/config/firewall (Template - Redacted)
+# Policy model: default deny lateral movement.
+
+# Zones
+config zone
+    option name 'trusted'
+    list network 'vlan10_trusted'
+    option input 'ACCEPT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+
+config zone
+    option name 'iot'
+    list network 'vlan20_iot'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+
+config zone
+    option name 'guest'
+    list network 'vlan30_guest'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+
+config zone
+    option name 'mgmt'
+    list network 'vlan99_mgmt'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+
+config zone
+    option name 'wan'
+    list network 'wan'
+    option input 'REJECT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+    option masq '1'
+    option mtu_fix '1'
+
+# WAN forwardings (allow internet)
+config forwarding
+    option src 'trusted'
+    option dest 'wan'
+
+config forwarding
+    option src 'iot'
+    option dest 'wan'
+
+config forwarding
+    option src 'guest'
+    option dest 'wan'
+
+# Inter-VLAN policy example: Trusted -> IoT allowed (for management/casting)
+config forwarding
+    option src 'trusted'
+    option dest 'iot'
+
+# Inter-VLAN policy example: Trusted -> Mgmt allowed (infra admin)
+config forwarding
+    option src 'trusted'
+    option dest 'mgmt'
+
+# Notes:
+# - Add explicit allow rules for DNS/DHCP to router if you tighten INPUT further.
+# - Guest and IoT should not initiate to Trusted by default.
