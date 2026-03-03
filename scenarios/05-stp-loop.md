@@ -1,109 +1,177 @@
-# Scenario 05 – STP Loop / Broadcast Storm
+# Incident Scenario: STP Loop / Broadcast Storm
 
-## Overview
-A switch loop or broadcast storm occurs when two or more switch ports create a Layer 2 loop. This can overwhelm the network with broadcast and multicast traffic, causing massive latency, intermittent connectivity, or complete network failure.
+## 1. Scenario Summary
 
-This scenario is extremely realistic—it's one of the most common real-world outages on improperly managed networks.
+A Layer 2 loop was introduced on the switching fabric, causing a broadcast storm that degraded or fully disrupted network connectivity across multiple VLANs.
 
-## Topology (Simplified)
+The incident demonstrated the importance of STP behaviour, loop prevention, and validating physical patching changes.
 
-AT-8326GB Switch
-   ├── Port 1 → Lab network
-   ├── Port 2 → Router trunk
-   └── Port 10 → Accidental loop back into Port 11 (or another switch)
+---
 
-## Symptoms
-- Very high latency across the LAN
-- Clients randomly lose connectivity
-- DHCP stops working or becomes extremely slow
-- DNS queries fail intermittently
-- CPU usage on switch spikes (if visible)
-- Wireshark shows:
-  - Repeated ARP broadcasts
-  - Flooded multicast traffic
-  - Duplicate packets
-- Link lights may blink rapidly and in sync between the looped ports
+## 2. Environment Context
 
-## Possible Root Causes
-- Two switch ports patched together
-- Another switch connected with trunk/access mismatch
-- Loop created through powerline adapters or unmanaged switches
-- Misconfigured spanning tree (STP disabled)
-- Wireless bridging configured incorrectly (client isolation off + bridging)
+Architecture:
 
-## Reproduction Steps (Lab)
-1. Use two ports on the AT-8326GB.
-2. Patch them together using a spare Ethernet cable.
-3. Observe within seconds:
-   - Latency increases
-   - DHCP may fail
-   - ARP tables fill rapidly
-4. Remove the cable to immediately restore normal operation.
+- OpenWrt (Layer 3 authority: routing, DHCP, firewall)
+- Zyxel GS1920-24v1 (primary distribution switch)
+- Cisco SG300 (secondary managed switch for lab expansion/testing)
+- VLANs in use:
+  - VLAN 10 – Trusted
+  - VLAN 20 – IoT
+  - VLAN 30 – Guest
+  - VLAN 99 – Management
 
-_Note: Keep the loop brief to avoid locking up powerline adapters._
+Switching operates at Layer 2. Trunks carry multiple VLANs via 802.1Q.
 
-## Diagnostic Workflow
+---
 
-### 1. Observe client behaviour
-- Packet loss
-- Latency spikes
-- Frequent disconnections
-- APIPA addresses (DHCP overwhelmed)
+## 3. Symptoms Observed
 
-### 2. Check switch port activity
-Look for:
-- Fast-blinking LEDs
-- Both ports with identical blink patterns
+Typical indicators observed during the incident:
 
-### 3. ARP table inspection (client)
-```bash
-ip neigh
-```
-If ARP entries flap or disappear quickly → strong sign of L2 storm.
+- Intermittent or total loss of connectivity across multiple VLANs
+- High latency and packet loss (even within same VLAN)
+- DHCP failures across affected segments (broadcasts overwhelmed)
+- Switch CPU/management plane becomes slow or unreachable
+- LEDs on switch ports show continuous heavy activity
+- Wireless clients experience disconnections (if AP uplinks traverse affected switching)
 
-### 4. Packet capture (client or mirrored port)
-```bash
-sudo tcpdump -i <iface> -vv
-```
-Look for:
-- Massive ARP traffic
-- Repeated broadcast packets
-- Duplicate frames
+---
 
-### 5. Inspect spanning tree on the switch
-(Once we have console access.)
+## 4. Initial Hypotheses
 
-Typical checks:
-- Is STP enabled globally?
-- Is STP enabled on the offending ports?
-- Are ports set to “edge” when they should not be?
-- Are trunk ports misconfigured?
+Possible causes considered:
 
-### 6. Eliminate the loop
-- Remove cables one-by-one until symptoms stop.
-- Identify the two ports that caused the storm.
+- WAN outage (Virgin Hub / ISP)
+- OpenWrt CPU or service failure (dnsmasq/firewall)
+- Trunk misconfiguration (tagging mismatch)
+- STP misconfiguration or STP disabled
+- Physical loop introduced via patch cable or accidental double-uplink
+- Misbehaving device generating excessive broadcast/multicast
 
-## Example Root Cause
-**Ports 9 and 10 patched together during cable tidy.**
+---
 
-Observations:
-- LAN becomes unusable
-- DHCP stops responding
-- ARP table floods
-- Removing the cable instantly restores network
+## 5. Diagnostic Steps
 
-## Resolution
-1. Unplug the loop cable.
-2. Verify STP is enabled on:
-   - All access ports
-   - All trunk ports
-3. Mark client-facing ports as STP edge ports (or equivalent).
-4. Ensure trunk ports are configured correctly between switches.
-5. Document ports and update switch labels.
+### Step 1 – Determine Scope (L2 vs L3)
 
-## Lessons Learned
-- Broadcast storms can cripple an entire network in seconds.
-- Always enable STP—even in a home lab.
-- LED blink patterns can reveal physical loops instantly.
-- Powerline adapters and unmanaged switches can propagate loops unexpectedly.
-- Packet captures make broadcast storms obvious and easy to diagnose.
+- Test ping to default gateway from VLAN 10 (10.10.10.1)
+- Test ping between two devices on same VLAN (east-west)
+- Observe whether failure spans multiple VLANs simultaneously
+
+Conclusion:
+- If multiple VLANs fail at once and local VLAN traffic degrades, suspect switching / Layer 2.
+
+---
+
+### Step 2 – Observe Switch Behaviour
+
+Checked on switches:
+
+- Management interface responsiveness (web/CLI)
+- Interface counters for abnormal broadcast/multicast rates
+- MAC address table instability (MAC flapping across ports)
+- STP status (root port, designated port, blocking state)
+
+Common findings during loop:
+- Rapidly increasing broadcast counters
+- MAC flapping messages (same MAC seen on multiple ports)
+- STP topology changes repeatedly
+
+---
+
+### Step 3 – Rapid Isolation Procedure (Stop the Bleeding)
+
+Goal: break the loop quickly.
+
+- Identify recent physical changes (new patch cable, new uplink, moved AP)
+- Disable/shut suspected ports (starting with newest/changed)
+- If uncertain, temporarily disable one trunk/uplink at a time:
+  - Zyxel ↔ SG300 trunk
+  - WLC uplink (if necessary)
+  - AP trunk ports (if AP is bridging unexpectedly)
+
+Connectivity typically recovers immediately once loop is broken.
+
+---
+
+### Step 4 – Root Confirmation
+
+After stability returns:
+
+- Re-enable ports one by one while monitoring:
+  - broadcast/multicast counters
+  - MAC table stability
+  - STP state changes
+
+Re-introducing the problematic link reproduces the storm.
+
+---
+
+## 6. Root Cause
+
+A Layer 2 loop was introduced between switches (or via an improperly patched access port), creating a broadcast storm.
+
+STP either:
+
+- was disabled on one or more involved ports, **or**
+- could not converge correctly due to port roles / misconfiguration, **or**
+- loop was formed in a way that bypassed expected STP protection.
+
+Result:
+- Broadcast and unknown-unicast frames multiplied
+- Switches became saturated
+- Endpoints lost stable connectivity
+
+---
+
+## 7. Resolution
+
+Immediate remediation:
+
+- Removed the physical loop (unpatched redundant link / corrected cabling)
+- Disabled the offending port until configuration confirmed
+- Ensured trunk links were intentional and documented
+
+Configuration hardening:
+
+- Confirm STP enabled on both switches
+- Ensure trunk ports participate correctly in STP
+- Consider enabling protection features (where supported):
+  - BPDU Guard / Root Guard (careful with lab intent)
+  - Loop guard-like protections
+  - Storm control (broadcast suppression) if available
+
+---
+
+## 8. Validation
+
+Confirmed after fix:
+
+- Stable ping to gateways on VLAN 10/20/30
+- DHCP leases issue normally on all VLANs
+- Switch management remains responsive
+- Broadcast/multicast counters return to normal rates
+- MAC table remains stable (no flapping)
+
+Monitored for a period to ensure no recurrence.
+
+---
+
+## 9. Lessons Learned
+
+- Most “whole network died” events in a LAN are Layer 2 until proven otherwise
+- STP is not optional in multi-switch environments
+- MAC flapping and broadcast counters are fast indicators of loops
+- Controlled isolation (disable ports systematically) is the quickest recovery approach
+- Document physical topology changes — loops often come from “quick patch jobs”
+
+---
+
+## 10. Preventative Controls Implemented
+
+- Updated physical topology documentation to include intentional uplinks only
+- Added a post-change checklist item:
+  - Verify no unintended redundant uplinks exist
+  - Validate STP state after cabling changes
+- (Optional) Implemented storm control on edge ports to reduce blast radius

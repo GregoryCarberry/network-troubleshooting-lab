@@ -1,136 +1,159 @@
-# Scenario 06 – Double NAT (Incorrect or Unexpected NAT Chaining)
+# Incident Scenario: Double NAT Detection and Resolution
 
-## Overview
-Double NAT occurs when two routers both perform Network Address Translation on traffic going to the internet. This is extremely common in home networks, labs, and small offices where ISP routers are combined with secondary routers.
+## 1. Scenario Summary
 
-In this lab, the Virgin Hub performs NAT, and OpenWRT may also be doing NAT. Incorrect routing, DHCP overlap, or misplacement of devices can expose or break double NAT.
+Clients experienced connectivity issues with inbound services and certain applications (e.g., port forwarding, VPN, gaming, remote access).
 
-## Topology (Simplified)
+Investigation revealed that the network was operating behind two layers of NAT (Double NAT), caused by the ISP router not being placed in modem mode.
 
-Internet
-   │
-   └──> Virgin Hub (192.168.0.1) – NAT #1
-             │
-             └──> OpenWRT WAN (192.168.0.x)
-                    │
-                    └──> OpenWRT LAN (192.168.50.1) – NAT #2
-                           │
-                           └──> Switch → Lab clients (192.168.50.x)
+This scenario demonstrates WAN boundary validation and upstream dependency awareness.
 
-## Symptoms
-- Internet works but:
-  - Port forwarding fails or is unpredictable
-  - Applications complain about “Strict NAT Type” (gaming, VoIP)
-  - VPNs behave unreliably or won’t connect
-  - Latency increases slightly
-- Some internal services unreachable from outside
-- Clients get overlapping or unexpected private IP ranges
+---
 
-## Possible Root Causes
-- Both Virgin Hub and OpenWRT performing NAT
-- Virgin Hub in router mode instead of modem mode
-- OpenWRT incorrectly placed behind additional ISP router
-- DHCP servers overlapping or misconfigured
-- Powerline adapters bridging unintended segments
-- Technicolor routers accidentally inserted, causing NAT #3+
+## 2. Environment Context
 
-## Reproduction Steps (Lab)
-1. Keep Virgin Hub in router mode (default).
-2. Connect OpenWRT WAN to Virgin Hub LAN.
-3. Ensure OpenWRT has NAT enabled.
-4. Attempt inbound port forwarding or VPN connection.
-5. Observe failures or double translations.
+Architecture (intended design):
 
-## Diagnostic Workflow
+Internet  
+→ Virgin Media Hub (Modem Mode)  
+→ OpenWrt (NAT + firewall + routing)  
+→ VLAN-segmented LAN  
 
-### 1. Check IP addressing on OpenWRT WAN
-```bash
-ip a | grep eth
-```
-If WAN is 192.168.0.x and LAN is 192.168.50.x → double NAT confirmed.
+OpenWrt is designed to be the **single NAT boundary**.
 
-### 2. Run traceroute from a lab client
-```bash
-traceroute 8.8.8.8
-```
-Typical double NAT behaviour:
-- Hop 1 = 192.168.50.1 (OpenWRT LAN)
-- Hop 2 = 192.168.0.1 (Virgin Hub)
-- Hop 3 = ISP gateway
+---
 
-### 3. Attempt port forwarding test
-Use simple tools:
-- Online port checkers
-- Python HTTP server on client:
-  ```bash
-  python3 -m http.server 8080
-  ```
-Forward 8080 on both:
-- Virgin Hub → OpenWRT WAN
-- OpenWRT → Client
+## 3. Symptoms Observed
 
-If it fails → double NAT is interfering.
+- Internet access functional
+- DHCP working across VLANs
+- Outbound browsing normal
+- Inbound port forwarding failing
+- VPN server unreachable from external network
+- Certain applications reporting “Strict NAT” or connection limitations
 
-### 4. Check NAT rules explicitly
-On OpenWRT:
-```bash
-iptables -t nat -L -v
-```
+No internal VLAN issues observed.
 
-On Virgin Hub (web UI):
-- Check firewall/NAT settings
-- Check DMZ or port forwarding rules
+---
 
-### 5. Confirm DHCP isn’t overlapping
-Clients should *not* receive 192.168.0.x directly.
-If they do:
-- VLAN misconfig
-- Powerline leakage
-- Incorrect switch uplink
+## 4. Initial Hypotheses
 
-### 6. Optional capture of NAT behaviour
-```bash
-tcpdump -i eth0 port 80 -n
-```
-Look for translated private IP addresses.
+Possible causes considered:
 
-## Example Root Cause
-**Virgin Hub left in router mode when OpenWRT also performing NAT.**
+- Misconfigured port forwarding on OpenWrt
+- Firewall blocking inbound traffic
+- ISP blocking ports
+- WAN IP mismatch
+- Double NAT condition
 
-Findings:
-- Lab client sees double NAT path in traceroute.
-- Unable to port forward cleanly.
-- VPN disconnections intermittent.
+---
 
-## Resolution Options
+## 5. Diagnostic Steps
 
-### Option A – Put Virgin Hub into Modem Mode
-- Virgin Hub stops doing NAT.
-- OpenWRT becomes primary router.
-- Cleanest, simplest solution.
-- Recommended for lab.
+### Step 1 – Check WAN IP on OpenWrt
 
-### Option B – Disable NAT on OpenWRT
-If the Virgin Hub must remain router:
-```bash
-uci set firewall.@zone[1].masq='0'
-uci commit firewall
-/etc/init.d/firewall restart
-```
-OpenWRT then acts as a routed (non-NAT) network.
+On OpenWrt WAN interface:
 
-### Option C – Use DMZ mode
-Place OpenWRT into the Virgin Hub’s DMZ:
-- Virgin Hub still NATs, but sends all inbound traffic to OpenWRT WAN.
-- Slight overhead but workable.
+Observed WAN IP in private range (e.g., 192.168.x.x or 10.x.x.x).
 
-### Option D – Flatten the network
-Use OpenWRT in access point mode only (no routing at all).
-Not ideal for the lab’s goals but sometimes useful.
+Expected:
+- Public routable IP address.
 
-## Lessons Learned
-- Double NAT is extremely common but often invisible until you need inbound traffic or VPNs.
-- Traceroute quickly reveals the NAT chain.
-- Port forwarding is difficult across multiple NAT layers.
-- Best practice: single NAT wherever possible.
-- Labs are ideal for intentionally breaking NAT to understand its behaviour.
+Conclusion:
+- OpenWrt not directly exposed to ISP.
+- Likely NAT occurring upstream.
+
+---
+
+### Step 2 – Check Virgin Hub Mode
+
+Accessed Virgin Hub management interface.
+
+Observed:
+- Router mode enabled
+- DHCP active on 192.168.0.0/24
+- NAT active
+
+This confirmed OpenWrt was behind another router performing NAT.
+
+---
+
+### Step 3 – External IP Verification
+
+Compared:
+
+- WAN IP on OpenWrt
+- Public IP reported by external service (e.g., “what is my IP”)
+
+Mismatch confirmed double NAT:
+
+Internet  
+→ Virgin Hub NAT  
+→ OpenWrt NAT  
+→ LAN
+
+---
+
+## 6. Root Cause
+
+Virgin Media Hub was operating in router mode instead of modem mode.
+
+Result:
+
+- Two NAT layers
+- Inbound traffic blocked unless port forwarded on both devices
+- UPnP conflicts
+- Complicated port forwarding
+
+This created application-layer limitations and made inbound service hosting unreliable.
+
+---
+
+## 7. Resolution
+
+Actions taken:
+
+- Enabled modem mode on Virgin Hub
+- Rebooted modem and OpenWrt
+- Confirmed OpenWrt WAN interface received public IP
+- Revalidated port forwarding rules on OpenWrt
+
+After correction:
+
+- Single NAT boundary restored
+- Port forwarding functional
+- VPN reachable externally
+- Application NAT warnings resolved
+
+---
+
+## 8. Validation
+
+Confirmed:
+
+- WAN interface on OpenWrt shows public IP
+- External port scan confirms open forwarded ports
+- VPN connection established from external network
+- No change to internal VLAN routing or segmentation
+
+---
+
+## 9. Lessons Learned
+
+- Always validate WAN IP against expected public range
+- Double NAT is common when using ISP routers
+- Inbound services require clear NAT boundary understanding
+- WAN troubleshooting starts with IP verification, not firewall assumptions
+- Architecture clarity prevents layered complexity
+
+---
+
+## 10. Preventative Controls Implemented
+
+- Documented WAN boundary expectations in deployment guide
+- Added WAN IP verification to baseline checklist
+- Treated ISP device mode as controlled configuration, not assumption
+- Created quick diagnostic rule:
+  1. Check WAN IP
+  2. Compare with public IP
+  3. Confirm modem mode status

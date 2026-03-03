@@ -1,243 +1,153 @@
-# Network Troubleshooting Lab – Deployment Guide
 
-This guide describes how to bring the lab online from a powered-off state to a
-stable, known-good baseline that all scenarios can start from.
+# Lab Deployment Guide
 
-It assumes you’ve already:
+## Purpose
 
-- Flashed and configured **HH5A-AP1** (OpenWrt 21.02.5) as an access point
-  with IP `192.168.0.200`.
-- Reset and baseline-configured the **GS1900-24** switch as per:
-  - `configs/switch/gs1900-baseline.md`
-  - `configs/switch/gs1900-vlan-architecture.md`
-- Updated the **pre-build checklist**:
-  - `notes/pre-build-checklist.md`
+This document defines the baseline deployment state of the Network Troubleshooting Lab.
 
----
+It exists to:
 
-## 1. Physical Topology (Baseline)
+- Establish a clean, known-good configuration
+- Prevent architectural drift
+- Provide a reproducible recovery reference
+- Separate baseline design from experimental changes
 
-### 1.1 Core layout
-
-From WAN to lab:
-
-- Virgin Media hub (router + DHCP @ `192.168.0.1`)
-- Powerline pair (between Virgin hub and lab room)
-- GS1900-24 managed switch (core switch)
-- HH5A-AP1 as dual-band AP
-- Lab hosts (PC, Linux Lite, Raspberry Pi)
-
-### 1.2 Cabling
-
-Recommended port mapping on the GS1900-24:
-
-- **Port 1 → Powerline adapter** (uplink to Virgin hub)
-- **Port 2 → HH5A-AP1 LAN1**
-- **Port 3 → Main PC**
-- **Port 4 → Linux Lite box**
-- **Port 5 → Raspberry Pi** (optional)
-- **Ports 6–24 → Spare**
-
-In the baseline state:
-
-- All active ports are **untagged members of VLAN 1**.
-- PVID = 1 for all ports.
+This guide reflects the CURRENT production baseline of the lab.
 
 ---
 
-## 2. Power-On Sequence
+## WAN Boundary
 
-This sequence reduces “mystery failures” from race conditions or DHCP oddities.
+### Virgin Media Hub
+- Operating Mode: Modem Mode
+- Routing: Disabled
+- DHCP: Disabled
+- Management IP: 192.168.100.1 (reachable via static route from VLAN 10)
 
-1. **Power on Virgin Media hub**  
-   - Wait until WAN and LAN LEDs are stable.
-
-2. **Power on both powerline adapters**  
-   - Confirm the powerline “link”/“pair” LED is solid (not blinking in error).
-
-3. **Power on the GS1900-24**  
-   - Check that:
-     - Port 1 LED (uplink) lights when the powerline is connected.
-     - SYS/STATUS LED shows normal operation (not flashing error codes).
-
-4. **Power on HH5A-AP1**  
-   - Ensure LAN LED (for the port connected to GS1900) is lit.
-   - Wait for Wi-Fi LED to come on.
-
-5. **Power on lab hosts** (PC, Linux Lite, Pi)  
-   - Verify link/activity LEDs on relevant GS1900 ports.
+The modem is treated purely as a Layer 2 WAN termination device.
 
 ---
 
-## 3. Baseline Network State
+## Layer 3 Authority
 
-Once powered:
+### OpenWrt (BT HomeHub 5A)
 
-- Virgin hub:
-  - IP: `192.168.0.1`
-  - DHCP: enabled (default range is fine for now)
-- GS1900-24:
-  - Management IP: `192.168.0.210`
-  - Default gateway: `192.168.0.1`
-  - VLANs: at minimum, VLAN 1 present, all ports untagged in VLAN 1
-- HH5A-AP1:
-  - IP: `192.168.0.200` (static)
-  - Gateway: `192.168.0.1`
-  - DHCP: disabled
-  - SSIDs:
-    - `Lab-Test-2_4G` (2.4 GHz, WPA2-PSK `fr0d0452`)
-    - `Lab-Test-5G` (5 GHz, WPA2-PSK `fr0d0452`)
+OpenWrt is the single Layer 3 authority.
 
----
+Responsibilities:
 
-## 4. Verification from the Main PC
+- Inter-VLAN routing
+- DHCP per VLAN
+- Firewall enforcement
+- NAT to WAN
+- Static route to modem interface
 
-On Windows (PowerShell):
+### VLAN Interfaces
 
-```powershell
-ipconfig
-```
+| VLAN | Interface | Subnet | Gateway |
+|------|----------|--------|----------|
+| 10 | br-vlan10 | 10.10.10.0/24 | 10.10.10.1 |
+| 20 | br-vlan20 | 10.10.20.0/24 | 10.10.20.1 |
+| 30 | br-vlan30 | 10.10.30.0/24 | 10.10.30.1 |
+| 99 | br-vlan99 | 10.10.99.0/24 | 10.10.99.1 |
 
-You should see:
-
-- An IPv4 address in `192.168.0.x` (from Virgin hub DHCP)
-- Default gateway: `192.168.0.1`
-
-Then:
-
-```powershell
-ping 192.168.0.1      # Virgin hub
-ping 192.168.0.200    # HH5A-AP1
-ping 192.168.0.210    # GS1900-24
-```
-
-All three should respond.
-
-From WSL/Ubuntu on the same PC:
-
-```bash
-ping -c 4 192.168.0.1
-ping -c 4 192.168.0.200
-ping -c 4 192.168.0.210
-```
-
-If any of these fail, fix the base connectivity before attempting lab scenarios.
+Each VLAN runs independent DHCP scope via dnsmasq.
 
 ---
 
-## 5. Verification from HH5A-AP1
+## Firewall Model
 
-SSH into the AP:
+Default policy: deny lateral movement.
 
-```bash
-ssh root@192.168.0.200
-```
+High-level policy:
 
-Then:
+- Trusted → IoT: allowed (controlled access for casting / testing)
+- Trusted → Guest: denied
+- IoT → Trusted: denied
+- Guest → All internal VLANs: denied
+- VLAN 99 (Management): restricted to VLAN 10 only
 
-```bash
-ping -c 4 192.168.0.1      # Virgin hub
-ping -c 4 192.168.0.210    # GS1900-24
-ping -c 4 8.8.8.8          # Optional – Internet reachability
-```
+WAN access is permitted from VLAN 10, 20, and 30 via NAT.
 
-You should also confirm that a wireless client:
-
-1. Connects to `Lab-Test-2_4G` or `Lab-Test-5G` with `fr0d0452`.
-2. Receives a `192.168.0.x` address from the Virgin hub.
-3. Can ping `192.168.0.1`, `192.168.0.200`, and `192.168.0.210`.
-4. Can reach the Internet (e.g. browse to a website).
+Firewall rules are centrally enforced on OpenWrt.
 
 ---
 
-## 6. Verification from the Linux Lite Box
+## Switching Baseline
 
-From the Linux Lite host (wired to GS1900 port 4):
+### Zyxel GS1920-24v1 (Primary Distribution Switch)
 
-```bash
-ip a
-```
+- Uplink to OpenWrt: 802.1Q trunk
+- Trunk to Cisco SG300
+- Trunk to WLC
+- Access ports assigned per VLAN
 
-You should see an IPv4 address in `192.168.0.x` with gateway `192.168.0.1`.
-
-Then:
-
-```bash
-ping -c 4 192.168.0.1
-ping -c 4 192.168.0.200
-ping -c 4 192.168.0.210
-```
-
-If this host is going to run services later (DHCP/DNS/HTTP for lab VLANs),
-it’s important to confirm it’s stable in the baseline first.
+No Layer 3 functionality is enabled.
 
 ---
 
-## 7. “Known Good” Snapshot
+### Cisco SG300
 
-Once all verification steps pass, you are in a **known good baseline**.
-
-At this point you should:
-
-1. **Export GS1900 config**  
-   - Use the web UI to download the current configuration and save as:
-     - `configs/switch/gs1900-24-base-config.txt`
-
-2. **Backup HH5A-AP1 config**  
-   From the AP:
-
-   ```bash
-   sysupgrade -b /tmp/hh5a-ap1-backup.tar.gz
-   ```
-
-   Then download that file and store it under:
-
-   ```text
-   configs/openwrt/hh5a-ap1/hh5a-ap1-backup.tar.gz
-   ```
-
-3. Optionally tag a Git commit:
-   ```bash
-   git add configs/switch/gs1900-24-base-config.txt
-   git add configs/openwrt/hh5a-ap1/hh5a-ap1-backup.tar.gz
-   git commit -m "Capture known-good baseline configs for GS1900 and HH5A-AP1"
-   # Optional:
-   # git tag baseline-v1
-   ```
+- Operates in Layer 2 mode
+- Used for trunk validation, STP testing, VLAN propagation experiments
+- No routing enabled
 
 ---
 
-## 8. Before Starting Any Scenario
+## Wireless Deployment
 
-Before running a scenario under `scenarios/`:
+### Cisco 2504 WLC
 
-1. Confirm:
-   - PC has `192.168.0.x` and can reach `192.168.0.1/.200/.210`.
-   - HH5A-AP1 Wi-Fi is working.
-   - GS1900-24 is reachable at `192.168.0.210`.
+- Management interface: VLAN 99
+- WLAN-to-VLAN mapping configured
+- AP management via VLAN 99
 
-2. If you’ve done previous experiments:
-   - Restore the GS1900 config from `gs1900-24-base-config.txt`.
-   - Restore HH5A-AP1 from `hh5a-ap1-backup.tar.gz` if needed.
+### SSID Mapping
 
-3. Re-run the quick ping checks in Sections 4–6.
+| SSID | VLAN |
+|------|------|
+| Trusted | 10 |
+| IoT | 20 |
+| Guest | 30 |
 
-Once all checks pass, you are safe to start a new scenario and deliberately
-break things.
+AP switch ports are configured as trunks carrying VLAN 10, 20, 30, and 99.
 
 ---
 
-## 9. File Location
+## Management Access Policy
 
-Place this file in the repo as:
+Management interfaces are only reachable from VLAN 10.
 
-```text
-notes/lab-deployment-guide.md
-```
+Devices protected:
 
-It is the high-level “bring the whole lab up” document that sits alongside:
+- OpenWrt admin interface
+- Zyxel management
+- SG300 management
+- WLC GUI/CLI
+- AP management
 
-- `notes/pre-build-checklist.md`
-- `configs/switch/gs1900-baseline.md`
-- `configs/switch/gs1900-vlan-architecture.md`
-- `configs/openwrt/hh5a-ap1/hh5a-ap1-notes.md`
+Guest and IoT VLANs have no access to infrastructure management.
+
+---
+
+## Baseline Validation Checklist
+
+After deployment or major changes, validate:
+
+- DHCP assignment on all VLANs
+- Internet access from VLAN 10, 20, 30
+- No lateral access from VLAN 30
+- IoT cannot initiate connections to VLAN 10
+- Management interfaces reachable only from VLAN 10
+- Trunk ports correctly tagging traffic
+- APs join WLC successfully
+
+---
+
+## Change Control Philosophy
+
+Experiments are performed intentionally and documented separately.
+
+This file defines the stable recovery baseline.
+
+If troubleshooting becomes unstable, revert to this configuration before introducing further variables.

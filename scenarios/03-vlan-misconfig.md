@@ -1,109 +1,165 @@
-# Scenario 03 – VLAN Misconfiguration (Client Isolated from Network)
+# Incident Scenario: VLAN Trunk Mismatch
 
-## Overview
-A client connected to the lab switch cannot reach the gateway or key services, while other devices on the same physical switch appear fine. This simulates a very common enterprise problem: wrong VLAN on a port or mismatched VLAN configuration.
+## 1. Scenario Summary
 
-## Topology (Simplified)
+Clients connected to VLAN 20 (IoT) failed to obtain IP addresses and had no network connectivity.
 
-Virgin Hub (192.168.0.1)
-   │
-   └──> OpenWRT (router-on-a-stick)
-            │ (trunk)
-            └──> AT-8326GB (managed switch)
-                     │ (access port – VLAN X)
-                     └──> Client
+The issue occurred after switch configuration changes involving trunk ports between the Zyxel GS1920 and Cisco SG300.
 
-## Symptoms
-- Client has an IP, but:
-  - Cannot reach the default gateway
-  - Cannot reach other hosts expected to be on the same subnet
-  - Cannot reach DNS or the internet
-- Other devices on different ports work as expected
-- Moving the same client to another port “fixes” the issue
+---
 
-## Possible Root Causes
-- Client port assigned to wrong VLAN
-- Trunk port missing VLAN in allowed list
-- Native VLAN mismatch between switch and router
-- Access port configured as trunk (tagged traffic unexpected)
-- VLAN deleted or not created on all relevant switches
-- Mislabelled patch panel / cables causing patching to wrong port
+## 2. Environment Context
 
-## Reproduction Steps (Lab)
-1. Configure:
-   - VLAN 10: Lab clients
-   - VLAN 20: Isolated test VLAN
-2. Set up OpenWRT with subinterfaces:
-   - `ethX.10` → 192.168.50.1/24
-   - `ethX.20` → 192.168.60.1/24
-3. Configure switch:
-   - Trunk uplink to OpenWRT (VLANs 10, 20 allowed)
-   - Some ports as access VLAN 10 (normal clients)
-   - One port as access VLAN 20 (test/misconfig)
-4. Connect a client expecting to be on VLAN 10 into the VLAN 20 port.
+Architecture:
 
-## Diagnostic Workflow
+- OpenWrt (Layer 3 authority)
+- Zyxel GS1920-24v1 (primary distribution switch)
+- Cisco SG300 (secondary managed switch)
+- VLAN 10 – Trusted
+- VLAN 20 – IoT
+- VLAN 30 – Guest
+- VLAN 99 – Management
 
-### 1. Basic checks on the client
-```bash
-ip a
-ip r
-ping -c 4 192.168.50.1   # expected gateway
-```
+Inter-VLAN routing and DHCP services are provided by OpenWrt.
 
-Questions:
-- Which subnet is the client actually in?
-- Does its IP range match the expected VLAN?
+Switches operate strictly at Layer 2.
 
-If the client is getting 192.168.60.x instead of 192.168.50.x → strongly suggests wrong VLAN.
+---
 
-### 2. Compare with a known-good port
-- Plug the same client into a port you *know* is correct.
-- If it works there, the problem is almost certainly switchport config, not the client.
+## 3. Symptoms Observed
 
-### 3. Inspect VLAN configuration on AT-8326GB
-(Example – adjust for actual CLI syntax when we have console access.)
+- Devices on VLAN 20 received no DHCP lease
+- Manual static IP assignment did not restore connectivity
+- No internet access from affected VLAN
+- VLAN 10 devices continued operating normally
+- Management VLAN unaffected
 
-- List VLANs
-- Show ports assigned to VLANs
-- Confirm the client’s port is in the correct VLAN
+---
 
-Questions:
-- Is the port an access port in the intended VLAN?
-- Is there any unexpected tagging on the port?
+## 4. Initial Hypotheses
 
-### 4. Check the trunk to OpenWRT
-- Confirm the trunk carries the VLAN used by the client.
-- Ensure native VLAN expectations are aligned on both sides.
-- Make sure VLAN isn’t pruned/filtered on the trunk.
+Possible causes considered:
 
-### 5. Optional: use packet capture
-On a mirror port:
-- Capture ARP and ping traffic from the client.
-- Check source IP/MAC and VLAN tags (if visible).
-- Validate whether ARP requests are reaching the gateway interface.
+- DHCP service failure on OpenWrt
+- Firewall rule blocking DHCP
+- Access port misassignment
+- Trunk misconfiguration between switches
+- Incorrect VLAN tagging (tagged vs untagged mismatch)
 
-## Example Root Case
-**Client port assigned to VLAN 20 instead of VLAN 10.**
+---
 
-Observations:
-- Client receives 192.168.60.x (VLAN 20 subnet) via DHCP.
-- Cannot reach 192.168.50.1 (VLAN 10 gateway).
-- Moving client to another port instantly resolves the issue.
+## 5. Diagnostic Steps
 
-## Resolution
-1. Change the client switchport to the correct VLAN (e.g. access VLAN 10).
-2. Renew client’s DHCP lease:
-   - Linux: `sudo dhclient -r && sudo dhclient`
-   - Windows: `ipconfig /release && ipconfig /renew`
-3. Confirm:
-   - Client gets IP in correct subnet (e.g. 192.168.50.x)
-   - Can ping gateway and other devices in VLAN 10
-   - Has working DNS/internet access (if configured)
+### Step 1 – Validate DHCP Service
 
-## Lessons Learned
-- VLAN problems often present as “random” connectivity issues.
-- Always compare a broken port with a known-good port.
-- IP subnet on the client is a clue to its actual VLAN.
-- Trunk misconfiguration can isolate entire VLANs.
-- Lab environments are perfect for practising VNAN mistakes *before* they happen in production.
+Confirmed via OpenWrt:
+
+- dnsmasq running
+- DHCP scope active for VLAN 20
+- No errors in logs
+
+Conclusion: DHCP server operational.
+
+---
+
+### Step 2 – Verify Interface Status
+
+Checked:
+
+- VLAN 20 interface up on OpenWrt
+- No interface errors
+- Correct gateway (10.10.20.1)
+
+Conclusion: L3 interface functioning.
+
+---
+
+### Step 3 – Test Local VLAN Reachability
+
+From a device statically configured in VLAN 20:
+
+- Unable to ping 10.10.20.1
+- ARP table incomplete
+
+Conclusion: Traffic not reaching gateway.
+
+---
+
+### Step 4 – Inspect Trunk Configuration
+
+Reviewed trunk ports between:
+
+- Zyxel GS1920 ↔ OpenWrt
+- Zyxel GS1920 ↔ Cisco SG300
+
+Findings:
+
+- VLAN 20 allowed on Zyxel trunk
+- VLAN 20 missing from SG300 trunk allowed list
+
+Traffic was not being propagated across switches.
+
+Root issue: VLAN 20 was not tagged across one trunk link.
+
+---
+
+## 6. Root Cause
+
+Misaligned trunk configuration between Zyxel GS1920 and Cisco SG300.
+
+VLAN 20 was defined on both switches but was not included in the trunk’s allowed VLAN list on one side.
+
+Result:
+
+- DHCP broadcast never reached OpenWrt
+- No ARP resolution
+- Complete isolation of VLAN 20
+
+---
+
+## 7. Resolution
+
+Actions taken:
+
+- Updated trunk configuration on Cisco SG300
+- Explicitly allowed VLAN 20 on trunk port
+- Verified tagging consistency (tagged on trunk, untagged on access ports)
+
+After correction:
+
+- DHCP leases successfully assigned
+- Gateway reachable
+- Internet restored
+
+---
+
+## 8. Validation
+
+Confirmed:
+
+- DHCP working on VLAN 20
+- Ping to 10.10.20.1 successful
+- Internet connectivity restored
+- No impact to other VLANs
+
+Monitored for 15 minutes to confirm stability.
+
+---
+
+## 9. Lessons Learned
+
+- Always validate trunk VLAN allow-lists on both sides
+- Do not assume VLAN creation equals VLAN propagation
+- Broadcast-based services (DHCP, ARP) are early indicators of trunk failure
+- Multi-vendor environments require explicit configuration verification
+
+---
+
+## 10. Preventative Controls Implemented
+
+- Added trunk verification checklist to deployment guide
+- Standardized trunk configuration template
+- Implemented post-change validation checklist:
+  - DHCP test per VLAN
+  - Gateway reachability
+  - Cross-switch VLAN audit
