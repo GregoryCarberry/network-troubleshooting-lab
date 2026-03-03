@@ -1,20 +1,31 @@
-# OpenWRT dhcp-config.txt (Template)
+# OpenWrt /etc/config/dhcp (Template - Redacted)
 
-config dhcp 'lan'
-    option interface 'lan'
+config dhcp 'vlan10_trusted'
+    option interface 'vlan10_trusted'
     option start '100'
     option limit '100'
     option leasetime '12h'
-    option dhcpv6 'server'
-    option ra 'server'
-    list dhcp_option '6,192.168.50.1'  # DNS server
+    list dhcp_option '6,10.10.10.1'
 
-config dhcp 'lab_test'
-    option interface 'lab_test'
+config dhcp 'vlan20_iot'
+    option interface 'vlan20_iot'
     option start '100'
     option limit '100'
     option leasetime '12h'
+    list dhcp_option '6,10.10.20.1'
+
+config dhcp 'vlan30_guest'
+    option interface 'vlan30_guest'
+    option start '100'
+    option limit '100'
+    option leasetime '12h'
+    list dhcp_option '6,10.10.30.1'
+
+# Management VLAN typically does NOT run DHCP unless required for lab tests.
+#config dhcp 'vlan99_mgmt'
+#    option interface 'vlan99_mgmt'
+#    option ignore '1'
 
 # Notes:
-# - Adjust pools to match lab subnets.
-# - Additional options (DNS, NTP, WINS) can be added for specific scenarios.
+# - Add NTP (option 42) if you want infra devices to sync time.
+# - Keep pools aligned with the VLAN table in docs.

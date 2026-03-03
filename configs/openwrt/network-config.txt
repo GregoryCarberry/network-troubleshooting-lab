@@ -1,25 +1,38 @@
-# OpenWRT network-config.txt (Template)
-# This is a documentation template, not a live config file.
+# OpenWrt /etc/config/network (Template - Redacted)
+# This is a documentation template, not a raw live export.
 
-# LAN interface (lab)
-config interface 'lan'
-    option ifname 'eth0.10'
+# VLAN interfaces (example naming)
+# Adjust device names (eth0.X / br-vlanX) to match the actual OpenWrt platform.
+
+config interface 'vlan10_trusted'
+    option device 'br-vlan10'
     option proto 'static'
-    option ipaddr '192.168.50.1'
+    option ipaddr '10.10.10.1'
     option netmask '255.255.255.0'
 
-# Optional test VLAN
-config interface 'lab_test'
-    option ifname 'eth0.20'
+config interface 'vlan20_iot'
+    option device 'br-vlan20'
     option proto 'static'
-    option ipaddr '192.168.60.1'
+    option ipaddr '10.10.20.1'
     option netmask '255.255.255.0'
 
-# WAN interface (upstream to Virgin Hub)
+config interface 'vlan30_guest'
+    option device 'br-vlan30'
+    option proto 'static'
+    option ipaddr '10.10.30.1'
+    option netmask '255.255.255.0'
+
+config interface 'vlan99_mgmt'
+    option device 'br-vlan99'
+    option proto 'static'
+    option ipaddr '10.10.99.1'
+    option netmask '255.255.255.0'
+
+# WAN interface (upstream to modem)
 config interface 'wan'
-    option ifname 'eth1'
+    option device 'eth1'
     option proto 'dhcp'
 
 # Notes:
-# - VLAN IDs and interfaces will be adjusted to match actual hardware.
-# - Real configs should not be committed with live public IP information.
+# - Real configs should not be committed with secrets (PPPoE creds, VPN keys, etc.)
+# - Keep this file aligned with docs/ logical-vlans.md

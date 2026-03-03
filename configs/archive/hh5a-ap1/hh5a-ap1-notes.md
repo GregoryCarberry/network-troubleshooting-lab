@@ -1,3 +1,5 @@
+## LEGACY (Archived)
+
 # HH5A-AP1 OpenWrt Configuration Notes
 
 ## Overview
@@ -25,7 +27,7 @@ The HH5A is used purely as an access point (AP), not a router.
 - **Mode:** AP  
 - **SSID:** `Lab-Test-2_4G`  
 - **Security:** WPA2-PSK (`psk2`)  
-- **Key:** `fr0d0452`  
+- **Key:** <REDACTED>
 - **HT Mode:** `HT20`  
 - **Network:** `lan`
 
@@ -36,7 +38,7 @@ The HH5A is used purely as an access point (AP), not a router.
 - **Mode:** AP  
 - **SSID:** `Lab-Test-5G`  
 - **Security:** WPA2-PSK (`psk2`)  
-- **Key:** `fr0d0452`  
+- **Key:** <REDACTED>
 - **HT Mode:** `VHT80`  
 - **Network:** `lan`
 
@@ -89,7 +91,7 @@ config wifi-iface 'default_radio0'
         option mode 'ap'
         option ssid 'Lab-Test-2_4G'
         option encryption 'psk2'
-        option key 'fr0d0452'
+        option key '<REDACTED>'
 
 config wifi-device 'radio1'
         option type 'mac80211'
@@ -106,7 +108,7 @@ config wifi-iface 'default_radio1'
         option mode 'ap'
         option ssid 'Lab-Test-5G'
         option encryption 'psk2'
-        option key 'fr0d0452'
+        option key '<REDACTED>'
 ```
 
 ---

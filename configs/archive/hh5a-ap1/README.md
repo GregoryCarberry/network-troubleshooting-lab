@@ -1,3 +1,5 @@
+## LEGACY (Archived)
+
 # HH5A-AP1 (BT Home Hub 5A) — OpenWrt Access Point Configuration
 
 ## Overview
